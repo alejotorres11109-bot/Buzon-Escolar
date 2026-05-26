@@ -6,8 +6,8 @@
 <title>Mi Salón App</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Fredoka+One&display=swap" rel="stylesheet">
 <!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <style>
 :root{
   --blue:#1a6cc4;--blue-l:#e6f1fb;--blue-m:#378add;--blue-d:#042c53;--blue-h:#185fa5;
@@ -470,22 +470,11 @@ function sendBuzon() {
   showToast('buzonToast');
   addPoints(3);
 }
-function setFilter(btn) {
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active'); activeFilter = btn.dataset.f;
-}
+// Cache mensajes buzón
+let allBuzonMsgs = [];
 
-// Listen buzón in real-time
-db.ref('buzon').orderByChild('ts').on('value', snap => {
-  const msgs = [];
-  snap.forEach(c => msgs.unshift({...c.val(), id: c.key}));
-  // Update counters
-  document.getElementById('totalN').textContent = msgs.length;
-  document.getElementById('sugN').textContent = msgs.filter(m=>m.cat==='Sugerencia').length;
-  document.getElementById('felN').textContent = msgs.filter(m=>m.cat==='Felicitación').length;
-  document.getElementById('ideaN').textContent = msgs.filter(m=>m.cat==='Idea').length;
-  // Render
-  const shown = activeFilter==='Todos' ? msgs : msgs.filter(m=>m.cat===activeFilter);
+function renderBuzonList() {
+  const shown = activeFilter==='Todos' ? allBuzonMsgs : allBuzonMsgs.filter(m=>m.cat===activeFilter);
   const list = document.getElementById('msgList');
   if (!shown.length) { list.innerHTML='<div class="empty"><span class="big">📭</span>No hay mensajes aquí.</div>'; return; }
   list.innerHTML = shown.map(m=>{
@@ -499,10 +488,24 @@ db.ref('buzon').orderByChild('ts').on('value', snap => {
       <div class="msg-time">🕐 ${fmtTime(m.ts)}</div>
     </div>`;
   }).join('');
-});
+}
 
-// Re-render on filter change (override setFilter)
-const origSetFilter = setFilter;
+function setFilter(btn) {
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); activeFilter = btn.dataset.f;
+  renderBuzonList();
+}
+
+// Escuchar buzón en tiempo real
+db.ref('buzon').orderByChild('ts').on('value', snap => {
+  allBuzonMsgs = [];
+  snap.forEach(c => allBuzonMsgs.unshift({...c.val(), id: c.key}));
+  document.getElementById('totalN').textContent = allBuzonMsgs.length;
+  document.getElementById('sugN').textContent = allBuzonMsgs.filter(m=>m.cat==='Sugerencia').length;
+  document.getElementById('felN').textContent = allBuzonMsgs.filter(m=>m.cat==='Felicitación').length;
+  document.getElementById('ideaN').textContent = allBuzonMsgs.filter(m=>m.cat==='Idea').length;
+  renderBuzonList();
+});
 
 // ===== CHAT =====
 function setRoom(btn) {
